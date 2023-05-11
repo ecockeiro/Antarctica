@@ -5,6 +5,7 @@ Created on Sun Jan  1 18:52:43 2023
 
 @author: everson
 """
+
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
@@ -17,31 +18,34 @@ import cartopy.io.shapereader as shpreader # Import shapefiles
 import matplotlib.colors as mcolors
 import dask.array as da
 
-### DATASETS
+# #mslhf
+# file_1 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/mslhf/*.nc').metpy.parse_cf()
+# file_1 = file_1.assign_coords(dict(longitude = (((file_1.longitude.values + 180) % 360) - 180))).sortby('longitude')
 
-# ERA5
-ERA5 = xr.open_dataset('/media/bjerknes/HD_todo_pod/Everson/Coqueiro/Antartica/siac_2023/Dados_usados/ERA5/flux_t2m.nc').metpy.parse_cf()
-temp_2m = ERA5.t2m
-fluxo_sens = ERA5.sshf
-fluxo_late = ERA5.slhf
+# # msshf
+# file_2 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/msshf/*.nc').metpy.parse_cf()
+# file_2 = file_2.assign_coords(dict(longitude = (((file_2.longitude.values + 180) % 360) - 180))).sortby('longitude')
 
-# SST
-SST =xr.open_mfdataset('/media/bjerknes/HD_todo_pod/Everson/Coqueiro/Antartica/siac_2023/Dados_usados/SST/SST_2019/*.nc4').metpy.parse_cf()
-SST = SST.assign_coords(dict(lon = (((SST.lon.values + 180) % 360) - 180))).sortby('lon')
+# sea ice cover
+file_3 = xr.open_mfdataset('/home/everson/siac_2023/dados/dados_gelo/SEA_ICE_CONC_DECADAL/AGO/*.nc').metpy.parse_cf()
+# file_3 = file_3.assign_coords(dict(xgrid = (((file_3.xgrid.values + 180) % 360) - 180))).sortby('xgrid')
 
-# Concentraçao de gelo
-CGELO = xr.open_mfdataset('/media/bjerknes/HD_todo_pod/Everson/Coqueiro/Antartica/siac_2023/Dados_usados/Concentracao_gelo/mensal_2019/*.nc').metpy.parse_cf()
-concentracao_gelo = CGELO.seaice_conc_monthly_cdr
-latitude = CGELO.latitude
-longitude = CGELO.longitude
+# sst
+file_4 = xr.open_mfdataset('/home/everson/siac_2023/dados/dados_gelo/TSM_ERSST.v5/DECADAL/AGO/*.nc4').metpy.parse_cf()
+# file_4 = file_4.assign_coords(dict(longitude = (((file_4.longitude.values + 180) % 360) - 180))).sortby('longitude')
+
+# # temp 2m
+# file_5 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/Temp_2m/*.nc').metpy.parse_cf()
+# file_5 = file_5.assign_coords(dict(longitude = (((file_5.longitude.values + 180) % 360) - 180))).sortby('longitude')
+
 
 # Extensão (Extent)
 lat_slice = slice(-45.,-90.)
 lon_slice = slice(-180.,180.)
 
 #pega as lat/lon
-lats = ERA5.latitude.sel(latitude=lat_slice).values
-lons = ERA5.longitude.sel(longitude=lon_slice).values
+lats = file_4.lat.sel(lat=lat_slice).values
+lons = file_4.lon.sel(lon=lon_slice).values
 
 for i in range(len(file_4['time'])):
     args_1 = dict(
