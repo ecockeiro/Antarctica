@@ -17,26 +17,19 @@ from metpy.units import units
 import cartopy.io.shapereader as shpreader # Import shapefiles
 import matplotlib.colors as mcolors
 import dask.array as da
+from scipy.interpolate import griddata
 
-# #mslhf
-# file_1 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/mslhf/*.nc').metpy.parse_cf()
-# file_1 = file_1.assign_coords(dict(longitude = (((file_1.longitude.values + 180) % 360) - 180))).sortby('longitude')
+### DATASETS
 
-# # msshf
-# file_2 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/msshf/*.nc').metpy.parse_cf()
-# file_2 = file_2.assign_coords(dict(longitude = (((file_2.longitude.values + 180) % 360) - 180))).sortby('longitude')
+# Concetraçao de gelo
+CGELO = xr.open_mfdataset('/home/everson/Documentos/ssd_antigo/maq_virtual/PIBIC-Antarctica/Dados_usados/Concentracao_gelo/mensal_2019/*.nc').metpy.parse_cf()
 
-# sea ice cover
-file_3 = xr.open_mfdataset('/home/everson/siac_2023/dados/dados_gelo/SEA_ICE_CONC_DECADAL/AGO/*.nc').metpy.parse_cf()
-# file_3 = file_3.assign_coords(dict(xgrid = (((file_3.xgrid.values + 180) % 360) - 180))).sortby('xgrid')
+# TSM
+TSM = xr.open_mfdataset('/home/everson/Documentos/ssd_antigo/maq_virtual/PIBIC-Antarctica/Dados_usados/SST/SST_2019/*.nc4').metpy.parse_cf()
+TSM = TSM.assign_coords(dict(lon = (((TSM.lon.values + 180) % 360) - 180))).sortby('lon')
 
-# sst
-file_4 = xr.open_mfdataset('/home/everson/siac_2023/dados/dados_gelo/TSM_ERSST.v5/DECADAL/AGO/*.nc4').metpy.parse_cf()
-# file_4 = file_4.assign_coords(dict(longitude = (((file_4.longitude.values + 180) % 360) - 180))).sortby('longitude')
-
-# # temp 2m
-# file_5 = xr.open_mfdataset('/home/everson/Siac/Siac/Dados/Track_validado_2010_2019/dados/dados_gelo/Temp_2m/*.nc').metpy.parse_cf()
-# file_5 = file_5.assign_coords(dict(longitude = (((file_5.longitude.values + 180) % 360) - 180))).sortby('longitude')
+# ERA5
+ERA5 = xr.open_dataset('/home/everson/Documentos/ssd_antigo/maq_virtual/PIBIC-Antarctica/Dados_usados/ERA5/flux_t2m.nc').metpy.parse_cf()
 
 
 # Extensão (Extent)
@@ -44,22 +37,30 @@ lat_slice = slice(-45.,-90.)
 lon_slice = slice(-180.,180.)
 
 #pega as lat/lon
-lats = file_4.lat.sel(lat=lat_slice).values
-lons = file_4.lon.sel(lon=lon_slice).values
+lats = ERA5.latitude.sel(latitude=lat_slice).values
+lons = ERA5.longitude.sel(longitude=lon_slice).values
 
-for i in range(len(file_4['time'])):
-    args_1 = dict(
-        time = file_4.time[i],
-        lat=lat_slice,
-        lon=lon_slice
-        )
+for i in range(len(ERA5['time'])):
+    args_1 = dict(longitude=lon_slice, latitude=lat_slice, time = ERA5.time[i])
 
-    # flux_hl = file_1.mslhf.metpy.sel(**args_1).metpy.unit_array.squeeze()
-    # flux_sl = file_2.msshf.metpy.sel(**args_1).metpy.unit_array.squeeze()
-    # sic = file_3.siconc.metpy.sel(**args_1).metpy.unit_array.squeeze()
-    sst = np.array(file_4.sst.sel(**args_1))
-    sst= sst[~np.isnan(sst)]
-    # temp2m =file_5.t2m.metpy.sel(**args_1).metpy.unit_array.squeeze().to('degC')
+
+    flux_hl = ERA5.slhf.metpy.sel(**args_1).metpy.unit_array.to('kJ/m**2')
+    flux_sl = ERA5.sshf.metpy.sel(**args_1).metpy.unit_array.to('kJ/m**2')
+    
+    sst = TSM.sst.sel(lon=lon_slice, time= TSM.time[i], lat=lat_slice).metpy.unit_array
+    temp2m = ERA5.t2m.metpy.sel(**args_1).metpy.unit_array.to('degC')
+    
+    NLATS = np.linspace(lats.min(), lats.max(), temp2m.shape[0])
+    NLONS = np.linspace(lons.min(), lons.max(), temp2m.shape[1])
+    
+    grid_lons, grid_lats = np.meshgrid(NLONS, NLATS)
+    # Redimensionar sst para o novo shape usando interpolação
+    sst_resized = griddata((lons.flatten(), lats.flatten()), sst.flatten(), (grid_lons, grid_lats), method='linear')
+
+
+    # Redimensionar sst para o shape de temp2m
+    sst_resized = mpinterp.interpolate_2d(sst, temp2m.shape)
+    diff_temp = sst-temp2m
     
     vtempo = file_4.time.data[i].astype('datetime64[ms]').astype('O')
 
